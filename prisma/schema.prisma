@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+  INVENTORY
+}
+
+enum OrderState {
+  PLANNED
+  IN_PROGRESS
+  DONE
+  CANCELED
+}
+
+enum WorkStatus {
+  PENDING
+  STARTED
+  PAUSED
+  COMPLETED
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id         String   @id @default(uuid())
+  name       String?
+  email      String   @unique
+  role       UserRole @default(OPERATOR)
+  password   String?  // hashed when using credentials
+  avatarUrl  String?
+  emailVerified DateTime?
+  image         String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  createdMO  ManufacturingOrder[] @relation("CreatedBy")
+  assignedWOs WorkOrder[]         @relation("AssignedTo")
+  comments   Comment[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Product {
+  id           String       @id @default(uuid())
+  sku          String?      @unique
+  name         String
+  description  String?
+  category     String?      // Added for frontend compatibility
+  unit         String?      // Added for frontend compatibility (e.g., "pcs", "kg", "lbs")
+  price        Float?       // Added for pricing information
+  stock        Float        @default(0)      // Current stock level
+  minStockAlert Int?        // Added for frontend compatibility - minimum stock alert level
+  bomLink      String?      // Added for frontend compatibility - BOM reference
+  isFinished   Boolean      @default(false)
+  boms         BOM[]        // Changed to one-to-many relationship
+  stockEntries StockEntry[]
+  manufacturingOrders ManufacturingOrder[]
+  bomComponents BOMComponent[] @relation("MaterialProduct")
+  bomItems     BOMItem[]    @relation("ComponentProduct") // For BOM items where this product is a component
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model BOM {
+  id          String        @id @default(uuid())
+  product     Product       @relation(fields: [productId], references: [id])
+  productId   String
+  version     String        @default("v1.0") // BOM version
+  description String?       // BOM description
+  isActive    Boolean       @default(true)   // Active/inactive status
+  components  BOMComponent[] @relation("OldBOM") // Keep old relation for backward compatibility
+  items       BOMItem[]     // New BOM items structure
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([productId, version]) // Ensure unique version per product
+}
+
+model BOMItem {
+  id          String   @id @default(uuid())
+  bom         BOM      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  bomId       String
+  component   Product  @relation("ComponentProduct", fields: [componentId], references: [id])
+  componentId String
+  quantity    Float    // Quantity needed
+  unit        String   @default("pcs") // Unit of measurement
+  notes       String?  // Optional notes
+  createdAt   DateTime @default(now())
+}
+
+model BOMComponent {
+  id         String   @id @default(uuid())
+  bom        BOM      @relation("OldBOM", fields: [bomId], references: [id])
+  bomId      String
+  material   Product  @relation("MaterialProduct", fields: [materialId], references: [id])
+  materialId String
+  qtyPerUnit Float
+  unit       String?  // Added for frontend compatibility - unit of measurement
+  cost       Float?   // Added for frontend compatibility - cost per unit
+  createdAt  DateTime @default(now())
+}
+
+model ManufacturingOrder {
+  id           String   @id @default(uuid())
+  orderNo      String   @unique
+  name         String
+  product      Product  @relation(fields: [productId], references: [id])
+  productId    String
+  quantity     Int
+  state        OrderState @default(PLANNED)
+  deadline     DateTime?
+  completedAt  DateTime?
+  bomSnapshot  Json?      // store BOM at order creation time (components array)
+  workOrders   WorkOrder[]
+  createdBy    User?      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum WorkPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model WorkOrder {
+  id           String   @id @default(uuid())
+  mo           ManufacturingOrder @relation(fields: [moId], references: [id])
+  moId         String
+  title        String
+  taskName     String?  // Added for frontend compatibility (alternative name field)
+  description  String?
+  assignedTo   User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedToId String?
+  workCenter   WorkCenter? @relation(fields: [workCenterId], references: [id])
+  workCenterId String?
+  machineWorkCenter String? // Added for frontend compatibility - machine/work center name
+  status       WorkStatus @default(PENDING)
+  priority     WorkPriority @default(MEDIUM) // Added for frontend compatibility
+  progress     Int       @default(0) // Added for frontend compatibility - completion percentage (0-100)
+  estimatedTime Float?   // Added for frontend compatibility - estimated time in hours
+  actualTime   Float?    // Added for frontend compatibility - actual time in hours
+  startTime    DateTime?
+  endTime      DateTime?
+  durationMin  Int?
+  notes        String?   // Added for frontend compatibility - work order notes
+  comments     Comment[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Comment {
+  id         String @id @default(uuid())
+  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id])
+  workOrderId String
+  author     User? @relation(fields: [authorId], references: [id])
+  authorId   String?
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+enum WorkCenterStatus {
+  AVAILABLE
+  BUSY
+  MAINTENANCE
+  OFFLINE
+}
+
+model WorkCenter {
+  id          String @id @default(uuid())
+  name        String
+  description String?
+  status      WorkCenterStatus @default(AVAILABLE)
+  capacity    Int?    // units per hour
+  costPerHour Float?  // operating cost per hour
+  location    String? // physical location
+  workOrders  WorkOrder[] // relation to work orders
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum StockEntryType {
+  IN
+  OUT
+}
+
+model StockEntry {
+  id           String @id @default(uuid())
+  product      Product @relation(fields: [productId], references: [id])
+  productId    String
+  type         StockEntryType // Added for frontend compatibility (IN/OUT instead of positive/negative change)
+  quantity     Float    // Added for frontend compatibility - always positive quantity
+  change       Float    // Keep existing field for backward compatibility - negative for consumption, positive for addition
+  reference    String?  // Added for frontend compatibility - reference number/code
+  notes        String?  // Added for frontend compatibility - entry notes
+  sourceType   String?  // e.g., "MO_COMPLETION", "MANUAL", "PURCHASE"
+  sourceId     String?  // id of MO or WO or receipt
+  balanceAfter Float?
+  createdAt    DateTime @default(now())
+}

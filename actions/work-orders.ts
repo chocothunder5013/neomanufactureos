@@ -82,7 +82,23 @@ export async function createWorkOrder(formData: FormData) {
   revalidatePath("/work-orders");
   return { success: true };
 }
+export async function addComment(workOrderId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
 
+  const content = formData.get("content") as string;
+  if (!content || content.trim() === "") return;
+
+  await prisma.comment.create({
+    data: {
+      workOrderId,
+      authorId: session.user.id,
+      content,
+    },
+  });
+
+  revalidatePath(`/work-orders/${workOrderId}`);
+}
 export async function getWorkOrders() {
   const session = await auth();
   if (!session) return [];

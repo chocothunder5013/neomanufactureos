@@ -1,4 +1,3 @@
-// neo/auth.ts
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import Credentials from "next-auth/providers/credentials"
@@ -40,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    // Add role and ID to the token/session so we can use them in the UI
+    // Add role and ID to the token/session so we can use them in the UI and Actions
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role

@@ -9,20 +9,27 @@ import { ArrowLeft, Trash2, Box, Layers } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-export default async function ProductDetailsPage({ params }: { params: { id: string } }) {
+export default async function ProductDetailsPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const resolvedParams = await params; // <--- This awaits the promise
+  const { id } = resolvedParams;
+
   const product = await prisma.product.findUnique({
-    where: { id: params.id },
+    where: { id }, // Use the extracted id
     include: {
-      bom: {
+      boms: { // Note: Your schema uses 'boms' (plural) [cite: 247], but your code used 'bom' [cite: 521]
         include: {
           components: {
-            include: { component: true } // Fetch the names of raw materials
+            include: { material: true } // Schema uses 'material', not 'component' [cite: 251]
           }
         }
       },
       stockEntries: {
         orderBy: { createdAt: 'desc' },
-        take: 5 // Last 5 movements
+        take: 5
       }
     }
   });

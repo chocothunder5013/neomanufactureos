@@ -123,3 +123,42 @@
     @apply bg-background text-foreground;
   }
 }
+@layer base {
+  /* Default (Zinc) is already your root variables. We just add overrides. */
+  
+  /* BLUE THEME */
+  .theme-blue {
+    --primary: oklch(0.488 0.243 264.376);
+    --primary-foreground: oklch(0.985 0 0);
+    --ring: oklch(0.488 0.243 264.376);
+  }
+  .dark .theme-blue {
+    --primary: oklch(0.60 0.20 260); /* Brighter blue for dark mode */
+    --primary-foreground: oklch(1 0 0);
+    --ring: oklch(0.60 0.20 260);
+  }
+
+  /* ROSE THEME */
+  .theme-rose {
+    --primary: oklch(0.577 0.245 27.325); /* Deep Rose */
+    --primary-foreground: oklch(1 0 0);
+    --ring: oklch(0.577 0.245 27.325);
+  }
+  .dark .theme-rose {
+    --primary: oklch(0.7 0.22 20); /* Brighter rose */
+    --primary-foreground: oklch(1 0 0);
+    --ring: oklch(0.7 0.22 20);
+  }
+
+  /* GREEN THEME */
+  .theme-green {
+    --primary: oklch(0.45 0.18 145); /* Emerald Green */
+    --primary-foreground: oklch(0.985 0 0);
+    --ring: oklch(0.45 0.18 145);
+  }
+  .dark .theme-green {
+    --primary: oklch(0.65 0.20 145); /* Bright Green */
+    --primary-foreground: oklch(0.1 0 0); /* Dark text on bright green */
+    --ring: oklch(0.65 0.20 145);
+  }
+}

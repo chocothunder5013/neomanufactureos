@@ -1,25 +1,29 @@
-// neo/middleware.ts
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth
-  const isOnDashboard = req.nextUrl.pathname.startsWith("/dashboard")
+  
+  // Update this line: Check for any protected route, not just dashboard
+  const isProtectedRoute = 
+    req.nextUrl.pathname.startsWith("/work-orders") ||
+    req.nextUrl.pathname.startsWith("/inventory") ||
+    req.nextUrl.pathname.startsWith("/work-centers") ||
+    req.nextUrl.pathname.startsWith("/analytics") ||
+    req.nextUrl.pathname.startsWith("/users") ||
+    req.nextUrl.pathname.startsWith("/settings");
+
   const isOnAuth = req.nextUrl.pathname.startsWith("/auth")
-  const isRoot = req.nextUrl.pathname === "/"
 
-  if (isRoot) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
-  }
-
-  if (isOnDashboard) {
+  if (isProtectedRoute) {
     if (isLoggedIn) return 
     return NextResponse.redirect(new URL("/auth", req.nextUrl))
   }
 
   if (isOnAuth) {
     if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
+      // FIX: Redirect to work-orders instead of dashboard
+      return NextResponse.redirect(new URL("/work-orders", req.nextUrl))
     }
     return 
   }
